@@ -1,0 +1,45 @@
+# Hem INSTALL
+
+For most systems, you should be able to just do the usual:
+
+```sh
+$ ./configure
+$ make
+# make install      ;# as root
+```
+
+***IMPORTANT:*** Hem requires GNU Make.
+If you're running on FreeBSD or a system with a non-GNU make, you will likely have to use the "gmake" command instead of "make" where specified above.
+If you're not sure, run `make --version` you should see the GNU Make version and a copyright notice.
+
+By default, the program is installed to `/usr/local/bin`.
+You can override the various install locations by passing them along the `make` command line.
+For a home install, try:
+
+```sh
+$ ./configure --prefix=$HOME
+$ make
+$ make install
+```
+
+After installing, reference the hem(1) manpages or dive right in with:
+
+```sh
+$ hem init --help
+```
+
+See the README file included in this distribution and the hem(1) manpage for information on hem usage.
+
+If you'd like to hack on hem, the easiest way is to run configure with the `--development` option and then put the working directory on your PATH:
+
+```sh
+$ ./configure --development
+$ make
+$ PATH=`pwd`:$PATH
+$ export PATH
+```
+
+You will need to run `make` after changing any of the source files to build the executable versions.
+There's also an `make auto` target that loops forever and makes all every second.
+
+The `--development` option basically sets up `PREFIX` and `BINDIR` to point to your working copy.
