@@ -1,4 +1,4 @@
-.gitignore
+!.gitignore
 
 hem
 hem-bounce
@@ -13,6 +13,8 @@ hem-push-keys
 
 config.mak
 test.out
+
+configure
 
 test/test.stdout
 test/test.stderr
