@@ -1,4 +1,4 @@
-# Hem INSTALL
+# `hem` INSTALL
 
 For most systems, you should be able to just do the usual:
 
@@ -8,7 +8,10 @@ $ make
 # make install      ;# as root
 ```
 
-***IMPORTANT:*** Hem requires GNU Make.
+If you don't have the `./configure` file, you create it with `autoconf`
+
+***IMPORTANT:*** `hem` requires GNU Make.
+
 If you're running on FreeBSD or a system with a non-GNU make, you will likely have to use the "gmake" command instead of "make" where specified above.
 If you're not sure, run `make --version` you should see the GNU Make version and a copyright notice.
 
@@ -22,15 +25,15 @@ $ make
 $ make install
 ```
 
-After installing, reference the hem(1) manpages or dive right in with:
+After installing, reference the `hem(1)` manpages or dive right in with:
 
 ```sh
 $ hem init --help
 ```
 
-See the README file included in this distribution and the hem(1) manpage for information on hem usage.
+See the README file included in this distribution and the `hem(1)` manpage for information on `hem` usage.
 
-If you'd like to hack on hem, the easiest way is to run configure with the `--development` option and then put the working directory on your PATH:
+If you'd like to hack on `hem`, the easiest way is to run configure with the `--development` option and then put the working directory on your PATH:
 
 ```sh
 $ ./configure --development
