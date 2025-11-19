@@ -1,9 +1,12 @@
 #!/bin/sh
+
 set -e
-hem_dir=$(echo $(dirname $HEM_CONFIG) | sed "s|^$HOME|~|")
+
+hem_dir=$(echo $(dirname ${_configFile}) | sed "s|^$HOME|~|")
+
 USAGE="[-e][-f][-d <dir>]
-Create a configuration directory structure in $hem_dir or the <dir>
-given to --base-dir.
+Create a configuration directory structure in $hem_dir
+or the <dir> given to --base-dir.
 
   -d, --base-dir <dir>  override default config directory
   -e, --edit            open an editor on the config file after creating
@@ -13,44 +16,50 @@ The following files and directories are created:
 
   $hem_dir/config       hem configuration file.
   $hem_dir/profile      profile directory for storing connection profiles.
-  $hem_dir/run          run-time directory for pid and state files."
+  $hem_dir/run          run-time directory for pid and state files.
+"
 
-. hem-sh-setup
+source hem-sh-setup
 
 # parse arguments
-force=
-editconfig=
+
+# Our default is not force anything.
+force=0
+
+# This says we won't edit a config until specifically told to.
+editconfig=0
+
 while [ $# -gt 0 ]; do
-case "$1" in
-	-d|--base-dir)
-		test $# -lt 2 &&
-		die "missing value to --base-dir argument."
-		HEM_CONFIG="$2/config"
-		shift; shift
-		;;
-	-f|--force)
-		force=1
-		shift
-		;;
-	-e|--edit)
-		editconfig=1
-		shift
-		;;
-	*)
-		see_usage "invalid argument: $1"
-		;;
-esac
+	case "$1" in
+		-d|--base-dir)
+			test $# -lt 2 &&
+			die "missing value to --base-dir argument."
+			{_configFile}="$2/config"
+			shift; shift
+			;;
+		-f|--force)
+			force=1
+			shift
+			;;
+		-e|--edit)
+			editconfig=1
+			shift
+			;;
+		*)
+			see_usage "invalid argument: $1"
+			;;
+	esac
 done
 
-base_dir=$(dirname $HEM_CONFIG)
+base_dir=$(dirname ${_configFile})
 
 # bail if the directory already exists.
 test -d "$base_dir" -a -z "$force" &&
 die "$base_dir already exists."
 
-if [ -f "$HEM_CONFIG" ]; then
-	mv "$HEM_CONFIG" "$HEM_CONFIG~"
-	info "backed up $(tildize "$HEM_CONFIG") to $(basename "$HEM_CONFIG")~"
+if [ -f "${_configFile}" ]; then
+	mv "${_configFile}" "${_configFile}~"
+	info "backed up $(tildize "${_configFile}") to $(basename "${_configFile}")~"
 fi
 
 # Set log_file to default if not set
@@ -61,7 +70,7 @@ log_to="$base_dir/log"
 mkdir -p "$base_dir"
 mkdir -p "$base_dir/profile"
 mkdir -p "$base_dir/run"
-cat <<EOF > "$HEM_CONFIG"
+cat <<EOF > "${_configFile}"
 # Hem configuration file (see hem_config(5) for more info)
 
 # Where are profiles stored?
@@ -78,10 +87,11 @@ run_dir=$(tildize $run_dir)
 # outs (default 15 seconds) the network timeouts will be adjusted
 # downward to 1/2 the poll time.
 poll_time=$poll_time
+
 EOF
 
 if test -n "$editconfig" ; then
-	editor "$HEM_CONFIG"
+	editor "${_configFile}"
 else
-	info "edit configuration in: $(tildize "$HEM_CONFIG")"
+	info "edit configuration in: $(tildize "${_configFile}")"
 fi
