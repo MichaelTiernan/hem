@@ -1,3 +1,5 @@
+.gitignore
+
 hem
 hem-bounce
 hem-config
@@ -8,11 +10,14 @@ hem-status
 hem-up
 hem-sh-setup
 hem-push-keys
+
 config.mak
 test.out
-test.stdout
-test.stderr
-test
+
+test/test.stdout
+test/test.stderr
+test/
+
 hem-manage
 hem-list
 Makefile
