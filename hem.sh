@@ -27,7 +27,7 @@ Global options:
 
 See 'hem <command> --help' for information on a specific <command>"
 
-# initialize HEM_DIR and HEM_CONFIG to their default values.
+# initialize HEM_DIR and {_configFile} to their default values.
 HEM_EXEC=${HEM_EXEC:-"@@HEM_EXEC_DIR@@"}
 HEM_VERSION="@@HEM_VERSION@@"
 PATH="$HEM_EXEC:$PATH"
@@ -35,7 +35,7 @@ PATH="$HEM_EXEC:$PATH"
 . hem-sh-setup
 
 # the default config file location.
-HEM_CONFIG=${HEM_CONFIG:-"$HOME/.hem/config"}
+_configFile=${_configFile:-"$HOME/.hem/config"}
 
 # when set, info messages are discarded.
 quiet=
@@ -57,7 +57,7 @@ while [ $# -gt 0 ]
 do
 case "$1" in
 	-c|--config)
-		HEM_CONFIG="$2"
+		_configFile="$2"
 		shift; shift
 		;;
 	-q|--quiet)
@@ -136,18 +136,18 @@ profiles="$@"
 # ---------------------------------------------------------------------
 #
 # Hem's default config file location is ~/.hem/config but it can be
-# overridden on the command line or by setting HEM_CONFIG. Hem does not
+# overridden on the command line or by setting _configFile. Hem does not
 # require a config file so care must be taken to not assume one
 # exists and that defaults are provided.
 
-test -r "$HEM_CONFIG" && {
-	__FILE__="$HEM_CONFIG"
-	. "$HEM_CONFIG"
+test -r "${_configFile}" && {
+	__FILE__="${_configFile}"
+	. "${_configFile}"
 	unset __FILE__
 }
 
 # configure default config values
-hem_dir=$(dirname $HEM_CONFIG)
+hem_dir=$(dirname ${_configFile})
 log_to=${log_to:-}
 run_dir=${run_dir:-"$hem_dir/run"}
 state_dir=${state_dir:-"$hem_dir/state"}
@@ -155,7 +155,7 @@ profile_dir=${profile_dir:-"$hem_dir/profile"}
 poll_time=${poll_time:-600}
 
 # setup sub-command environment
-export HEM_CONFIG PATH quiet verbose
+export _configFile PATH quiet verbose
 export log_to run_dir state_dir profile_dir poll_time
 
 # If command help is requested, exec the command immediately.

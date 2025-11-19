@@ -1,49 +1,92 @@
-#!/bin/sh
-# hem-* scripts source this file to bring in some useful helper
-# functions.
+#!/bin/false
+
+# hem-* scripts source this file to bring in some useful helper functions.
+
+####>--------------------------------------------------------------------------------
+
+_projName='hem'
+
+# List of variables used in the profiles.
+_profVars="host port user remote pidfile statefile"
+_profVars="${_profVars} monitor_port tunnels extra_args disabled"
+
+_profVars="${_profVars} _configFile"
+
+# A list of commands now available
+# hem-sh-setup # This file
+# 
+# The one time 'set it up' script...
+# hem-init
+#
+# The individual commands....
+#     hem-bounce  hem-list       hem-status
+#     hem-down    hem-manage     hem-up
+#     hem-info    hem-push-keys
+
+# hem
+
+####>--------------------------------------------------------------------------------
 
 # setup some common variables.
-progname=$(basename $0)                       # hem-foo-bar
-commname=$(echo "$progname" | sed 's/-/ /')   # hem foo-bar
+# If called as hem-foo-bar, the next line returns the fullpath
+
+# /usr/local/bin/hem-foo-bar
+_fullPath=$(realpath ${0})
+
+# hem-foo-bar
+_progName=$(basename ${_fullPath})
+
+# foo-bar
+_commandName=$(echo "${_progName}" | sed 's/-/ /')
+
+####>--------------------------------------------------------------------------------
+
 workdir=$(pwd)
+
 PS4=${PS4:-"+ "}
+
+####>--------------------------------------------------------------------------------
 
 # die [<message>]
 #
 # Exit with a status of 1. If <message> is provided, write it to stderr before
 # exiting.
 die() {
-	test $# -gt 0 && {
-		echo >&2 "$commname:" "$@"
-		log "$@"
+	test ${#} -gt 0 && {
+		echo >&2 "${_commandName}:" "${@}"
+		log "${@}"
 	}
 	exit 1
 }
+
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # usage
 #
 # Write program usage to stdout. This function does not exit.
 usage() {
-	echo "Usage: $commname $USAGE"
+	echo "Usage: ${_commandName} ${USAGE}"
 }
 
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # see_usage [<message>]
 #
-# Show basic program usage and exit with status 1. If <message> is provided,
-# write that message to stderr before anything else.
+# Show basic program usage and exit with status 1.
+# If <message> is provided, write that message to stderr before anything else.
 see_usage() {
-	test $# -gt 0 &&
-	echo >&2 "$commname:" "$@"
-	echo "Usage: $commname $USAGE" | head -1
-	echo "See: $commname --help"
+	test ${#} -gt 0 && echo >&2 "${_commandName}:" "${@}"
+	echo "Usage: ${_commandName} ${USAGE}" | head -1
+	echo "See: ${_commandName} --help"
 	exit 1
 }
 
-if [ $# -gt 0 ] && [ "$1" = '--help' ] ; then
+if [ ${#} -gt 0 ] && ( [ "${1}" = '--help' ] || [ "${1}" = '-h' ] ) ; then
 	usage
 	exit 0
 fi
+
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # log <message>
 #
@@ -53,27 +96,28 @@ fi
 #
 # If verbose is set, the message is also written to stderr with a PS4 prefix.
 log() {
-	[ $verbose ] &&
-	echo >&2 "${PS4}$progname:" "$@"
-	if [ -n "$log_to" ] ; then
-		echo "$(date +'%Y-%m-%d %H:%M:%S') $progname[$$]" "$@" >> "$log_to"
+	[ ${verbose} ] && echo >&2 "${PS4}${_progName}:" "${@}"
+	if [ -n "${log_to}" ] ; then
+		echo "$(date +'%Y-%m-%d_%H:%M:%S') ${_progName}[${$}]" "${@}" >> "${log_to}"
 	else
-		logger "$@"
+		logger "${@}"
 	fi
 }
 
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # info <message>
 #
 # Write non-critical informational message to stdout unless the
-# quiet environment variable is set. The message is also written to
-# the log.
+#  quiet environment variable is set.
+# The message is also written to the log.
 info() {
-	[ $quiet ]   || echo "$@"
-	[ $verbose ] || log "$@"
+	[ ${quiet} ]   || echo "${@}"
+	[ ${verbose} ] || log "${@}"
 	return 0
 }
 
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # editor [<args>] <file>
 #
@@ -81,13 +125,14 @@ info() {
 # in that order.
 editor() {
 	VISUAL=${VISUAL:-}
-	if [ -n "$VISUAL" ]; then
-		$VISUAL "$@"
+	if [ -n "${VISUAL}" ]; then
+		${VISUAL} "${@}"
 	else
-		${EDITOR:-'vi'} "$@"
+		${EDITOR:-'vi'} "${@}"
 	fi
 }
 
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # tildize <path>
 #
@@ -97,6 +142,18 @@ tildize() {
 	return 0
 }
 
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# untildize <path>
+#
+# Convert tildes ("~") to $HOMEs at the beginning of <path>.
+untildize() {
+	echo "${1:-}" | sed "s@^~@${HOME}@"
+	return 0
+	# "s@^$HOME@~@"
+}
+
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # remote_part [<user>@]<host>[:<port>]
 #
@@ -126,27 +183,34 @@ remote_part() {
 	return 0
 }
 
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 
 # ---------------------------------------------------------------------
-# Profile Related Functions
+# Profile Specific Functions
 # ---------------------------------------------------------------------
 
 # profile_path <name>|<path>
 #
-# Outputs the path to a profile file given a profile name or profile
-# path. No attempt is made to check that the profile exists or is
-# syntactally valid.
+# Outputs the path to a profile file given a profile name or profile path.
+# No attempt is made to check that the profile exists or is syntactally valid.
 #
-# Most profile_XXX functions call this when they indicate a <profile>
-# argument.
+# Most profile_XXX functions call this when they indicate a <profile> argument.
+#
 profile_path() {
-	if [ "$(expr -- "$1" : '\/')" = 1 ] ; then
+	# Check to see if the name "1" includes a "/" path separator.
+	if [ "$(expr -- "${1}" : '\/')" = 1 ] ; then
+		# If it includes a "/" then its probably a full path.
 		echo "$1"
 	else
-		echo "$profile_dir"/"$1"
+		# If it DOESN'T includes a "/" then its probably just a filename.
+		# If so, look in the profile directory.
+		echo "${profile_dir}"/"${1}"
 	fi
 	return 0
 }
+
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # profile_check <profile>
 #
@@ -157,21 +221,22 @@ profile_exist() {
 	return 1
 }
 
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 # profile_load <profile>
 #
-# load the profile specified and set up some intelligent variable
-# defaults.
+# load the profile specified and set up some intelligent variable defaults.
 profile_load() {
 	profile_file=$(profile_path $1)
 	profile_name=$(basename "$profile_file")
 
 	# unset all profile variables
-	for i in host port user remote pidfile statefile monitor_port tunnels \
-		extra_args disabled
-	do eval "$i=" ; done
+	for i in ${_profVars} ; do
+		eval "$i="
+	done
 
 	# source the profile
-	import $profile_name
+	import ${profile_name}
 
 	# setup remote variables
 	remote=${remote:-$profile_name}
@@ -184,8 +249,11 @@ profile_load() {
 	pidfile=${pidfile:-$run_dir/$profile_name.pid}
 	statefile=${statefile:-$state_dir/$profile_name}
 	monitor_port=${monitor_port:-0}
+
 	return 0
 }
+
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # profile_required <profile>
 #
@@ -198,6 +266,8 @@ profile_required() {
 	profile_load "$profile_name"
 }
 
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 # ---------------------------------------------------------------------
 # Profile Helper Function Library
 # ---------------------------------------------------------------------
@@ -206,9 +276,10 @@ profile_required() {
 
 # import <profile>
 #
-# Loads the configuration from the profile specified into the current
-# profile. The <profile> argument may be a name relative to
-# <profile_dir> or the full path to some other file.
+# Loads the configuration from the profile specified into the current profile.
+# The <profile> argument may be a name relative to <profile_dir> or
+# the full path to some other file.
+#
 import() {
 	_p=$(profile_path "$1")
 	if test -r "$_p" ; then
@@ -219,6 +290,7 @@ import() {
 	fi
 }
 
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # forward [<bind>:]<listen-port> [to] [<host>:]<forward-port> [<name>]
 #
@@ -237,6 +309,7 @@ forward() {
 	return 0
 }
 
+####> - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 # backward [<bind>:]<listen-port> [to] [<host>:]<forward-port> [<name>]
 #
@@ -254,3 +327,5 @@ backward() {
 	tunnels="$tunnels:localhost:$1"
 	return 0
 }
+
+####>--------------------------------------------------------------------------------

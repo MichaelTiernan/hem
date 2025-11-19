@@ -1,19 +1,38 @@
 #!/bin/sh
-# Hem tests
-set -e
-cd "$(dirname $0)"
-workdir="$(pwd)"
-HEM_EXEC="$workdir"
-HEM_CONFIG="$workdir/test/hem/config"
 
-export HEM_EXEC HEM_CONFIG
+# Hem tests
+
+set -e
+
+export _noiseFlag=${_noiseFlag:=0}
+
+cd "$(dirname $0)"
+
+workdir="$(pwd)"
+
+HEM_EXEC="${workdir}"
+
+_configFile="${workdir}/test/hem/config"
+
+export HEM_EXEC _configFile
+
+test_out=test.out
+test_stdout=test.stdout
+test_stderr=test.stderr
 
 # write output to log file
-LOG_FILE="$workdir/test.out"
+LOG_FILE="${workdir}/test.out"
 
-test "$1" = '-v' &&
-LOG=/dev/stderr ||
-LOG="$LOG_FILE"
+# Where our testing is done
+TEST_DIR=test
+
+# test "$1" = '-v' && ( LOG=/dev/stderr || LOG="$LOG_FILE" )
+
+if [ "${1}" = '-v' ] ; then
+	LOG="${LOG_FILE}"
+else
+	LOG=/dev/stderr
+fi
 
 die() {
 	test -n "$current_test" &&
@@ -23,7 +42,7 @@ die() {
 }
 
 info() {
-	echo "$@" >> $LOG
+	echo "$@" >> ${LOG}
 }
 
 dot() {
@@ -41,7 +60,7 @@ tests=0
 current_test=
 begin_test() {
 	current_test="$1"
-	info "-----------------------------------------------------------------------------"
+	info "=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-="
 	info "test: $current_test"
 }
 
@@ -59,38 +78,51 @@ not() {
 
 assertions=0
 assert() {
+	# set -x
+	# set -v
+
 	info "---> assert:" "$@"
-	if "$@" > 'test.stdout' 2> 'test.stderr' ; then
+	if "$@" 1>> ${test_stdout} 2>> ${test_stderr} ; then
 		assertions=$((assertions + 1))
 		dot
-		cat 'test.stdout' 'test.stderr' >> $LOG
+		cat ${test_stdout} ${test_stderr} >> ${LOG}
 	else
 		result=$?
 		echo
-		echo "test fail: $current_test"
-		echo "assertion:" "$@"
-		echo "status: $result"
-		echo "stderr:"
-		cat 'test.stderr'
-		echo "stdout:"
-		cat 'test.stdout'
+		echo "Test Fail: ${current_test}"
+		echo "Assertion: ${@}"
+		echo "   Status: ${result}"
+		echo
+		echo "######>######>######>######>######>######>######>######>######>######>######>######>"
+		echo "stdERR:"
+		cat ${test_stderr}
+		echo "#     +      +      +      +      +      +      +      +      +      +      +      +"
+		echo "stdOUT:"
+		cat ${test_stdout}
+		echo "######<######<######<######<######<######<######<######<######<######<######<######<"
+
+		[ ${_noiseFlag} -ne 0 ] && printf "Hit return to continue..." ; read foobar
+
 		exit 1
 	fi
+	# set +v
+	# set +x
+	[ ${_noiseFlag} -ne 0 ] && printf "Hit return to continue..." ; read foobar
 	return 0
 }
 
 teardown() {
-	rm -rf test test.stdout test.stderr test.out
+	/bin/rm -rf ${TEST_DIR} ${test_out} ${test_stdout} ${test_stderr} 
 }
 
 setup() {
-	mkdir test
-	cd test
+	mkdir ${TEST_DIR}
+	# cd ${TEST_DIR}
 }
 
-if [ -d "test" ] ; then
+if [ -d "${TEST_DIR}" ] ; then
 	info "wiping out old test environment ..."
-	rm -rf $TEST_DIR
+	rm -rf ${TEST_DIR}
 fi
 
 if [ "$LOG_FILE" != "/dev/stderr" -a -f "$LOG_FILE" ] ; then
@@ -101,114 +133,134 @@ fi
 info "creating test environment under $workdir/test ..."
 teardown ; setup
 
-begin_test "sanity"
-	assert true
-	assert not false
-	assert test 1 = 1
-	assert sh -c 'echo "foo bar" | grep -q foo'
-	assert ssh -V
-	assert not ssh --invalid-arg
-	assert sh -c 'ssh -V 2>&1 | grep OpenSSH'
-end_test
+(
+	cd ${TEST_DIR}
 
-SCRIPTS=
-for f in ../*.sh ;
-do
-	SCRIPTS="$(echo $f | sed 's/\.sh$//') $SCRIPTS"
-done
+	begin_test "sanity"
+		assert true
+		assert not false
+		assert test 1 = 1
+		assert sh -c 'echo "foo bar" | grep -q foo'
+		assert ssh -V
+		# assert not ssh --invalid-arg
+		# assert not ssh -invalid-arg
+		assert sh -c 'ssh -V 2>&1 | grep OpenSSH'
+	end_test
 
-begin_test "syntax checks"
-	for f in $SCRIPTS
-	do
-		assert sh -n "$f"
+	[ ${_noiseFlag} -ne 0 ] && printf "Hit return to continue..." ; read foobar
+
+	SCRIPTS=""
+	# for f in ../*.sh ; do
+
+	for fNameTmp in *.sh ; do
+		SCRIPTS="$(echo ${fNameTmp} | sed 's/\.sh$//') ${SCRIPTS}"
 	done
-end_test
 
-begin_test "usage checks"
-	for f in $SCRIPTS
-	do
-		assert "$f" --help
-	done
-end_test
+	[ ${_noiseFlag} -ne 0 ] && printf "Hit return to continue..." ; read foobar
 
-unset VISUAL
-export VISUAL
-EDITOR=echo
-export EDITOR
+	begin_test "syntax checks"
+		for fNameTmp in ${SCRIPTS} ; do
+			assert sh -n "${fNameTmp}"
+		done
+	end_test
 
-begin_test "hem init tests"
-	assert hem init
-	assert test -d hem
-	assert test -f hem/config
-	assert sh hem/config
-	assert test -d hem/profile
-	assert test -d hem/run
-	assert not hem init
-	assert hem init --force
-	assert hem init -d ./hem2
-	assert test -d hem2
-	assert test -f hem2/config
-	assert sh hem2/config
-	assert test -d hem2/profile
-	assert test -d hem2/run
-	assert hem init --base-dir hem2 -f -e
-	assert rm -rf hem2
-end_test
+	[ ${_noiseFlag} -ne 0 ] && printf "Hit return to continue..." ; read foobar
 
-begin_test "hem status tests"
-	# no profiles defined, we should pass though
-	assert hem status
-	assert hem status all
-	touch hem/profile/$USER@localhost
-	assert hem status all
-	assert not hem status --check all
-	# quick check to see if quiet is propogating properly
-	assert test $(hem status all | wc -l) = 1
-	assert test $(hem --quiet status all | wc -l) = 0
-	echo "$$" > hem/run/$USER@localhost.pid
-	assert hem status $USER@localhost
-	assert hem status --check $USER@localhost
-	assert test $(hem status -p $USER@localhost) = $$
-	# test with bad pid
-	touch hem/profile/$USER@127.0.0.1
-	echo "0" > hem/run/$USER@127.0.0.1.pid
-	assert hem status $USER@127.0.0.1
-	assert not hem status --check $USER@127.0.0.1
-	# should not write pid if its not running
-	assert test -z "$(hem status -p $USER@127.0.0.1)"
-end_test
+	begin_test "usage checks"
+		for fNameTmp in ${SCRIPTS} ; do
+			assert "${fNameTmp}" --help
+		done
+	end_test
 
-begin_test "hem info tests"
-	# no profiles defined, we should pass though
-	assert hem info
-	assert hem info -f $USER@localhost
-	assert hem info -F $USER@localhost
-	assert hem info -m $USER@localhost
-	assert hem info -p $USER@localhost
-	assert hem info -r $USER@localhost
-	assert hem info -t $USER@localhost
-	assert hem info -u $USER@localhost
-	assert [ $(hem info -p $USER@localhost) = 22 ]
-	assert [ $(hem info -t $USER@localhost) = localhost ]
-	assert [ $(hem info -u $USER@localhost) = $USER ]
-	touch hem/profile/foo@localhost.local:35
-	assert hem info -f foo@localhost.local:35
-	assert hem info -F foo@localhost.local:35
-	assert hem info -m foo@localhost.local:35
-	assert hem info -r foo@localhost.local:35
-	assert [ $(hem info -p foo@localhost.local:35) = 35 ]
-	assert [ $(hem info -t foo@localhost.local:35) = localhost.local ]
-	assert [ $(hem info -u foo@localhost.local:35) = foo ]
-end_test
+	unset VISUAL
+	export VISUAL
+	EDITOR=echo
+	export EDITOR
 
+	[ ${_noiseFlag} -ne 0 ] && printf "Hit return to continue..." ; read foobar
 
-begin_test "hem manage tests"
-	# no profiles defined, we should pass though
-	assert hem manage -A foo.com
-	assert test -f hem/profile/foo.com
-	assert test "$(wc -l < hem/profile/foo.com)" -gt 0
-	assert sh -n hem/profile/foo.com
-end_test
+	begin_test "hem init tests"
+		assert hem init
+		assert test -d hem
+		assert test -f hem/config
+		assert sh hem/config
+		assert test -d hem/profile
+		assert test -d hem/run
+		assert not hem init
+		assert hem init --force
+		assert hem init -d ./hem2
+		assert test -d hem2
+		assert test -f hem2/config
+		assert sh hem2/config
+		assert test -d hem2/profile
+		assert test -d hem2/run
+		assert hem init --base-dir hem2 -f -e
+		assert rm -rf hem2
+	end_test
+
+	[ ${_noiseFlag} -ne 0 ] && printf "Hit return to continue..." ; read foobar
+
+	begin_test "hem status tests"
+		# no profiles defined, we should pass though
+		assert hem status
+		assert hem status all
+		touch hem/profile/$USER@localhost
+		assert hem status all
+		assert not hem status --check all
+		# quick check to see if quiet is propogating properly
+		assert test $(hem status all | wc -l) = 1
+		assert test $(hem --quiet status all | wc -l) = 0
+		echo "$$" > hem/run/$USER@localhost.pid
+		assert hem status $USER@localhost
+		assert hem status --check $USER@localhost
+		assert test $(hem status -p $USER@localhost) = $$
+		# test with bad pid
+		touch hem/profile/$USER@127.0.0.1
+		echo "0" > hem/run/$USER@127.0.0.1.pid
+		assert hem status $USER@127.0.0.1
+		assert not hem status --check $USER@127.0.0.1
+		# should not write pid if its not running
+		assert test -z "$(hem status -p $USER@127.0.0.1)"
+	end_test
+
+	[ ${_noiseFlag} -ne 0 ] && printf "Hit return to continue..." ; read foobar
+
+	begin_test "hem info tests"
+		# no profiles defined, we should pass though
+		assert hem info
+		assert hem info -f $USER@localhost
+		assert hem info -F $USER@localhost
+		assert hem info -m $USER@localhost
+		assert hem info -p $USER@localhost
+		assert hem info -r $USER@localhost
+		assert hem info -t $USER@localhost
+		assert hem info -u $USER@localhost
+		assert [ $(hem info -p $USER@localhost) = 22 ]
+		assert [ $(hem info -t $USER@localhost) = localhost ]
+		assert [ $(hem info -u $USER@localhost) = $USER ]
+		touch hem/profile/foo@localhost.local:35
+		assert hem info -f foo@localhost.local:35
+		assert hem info -F foo@localhost.local:35
+		assert hem info -m foo@localhost.local:35
+		assert hem info -r foo@localhost.local:35
+		assert [ $(hem info -p foo@localhost.local:35) = 35 ]
+		assert [ $(hem info -t foo@localhost.local:35) = localhost.local ]
+		assert [ $(hem info -u foo@localhost.local:35) = foo ]
+	end_test
+
+	[ ${_noiseFlag} -ne 0 ] && printf "Hit return to continue..." ; read foobar
+
+	begin_test "hem manage tests"
+		# no profiles defined, we should pass though
+		assert hem manage -A foo.com
+		assert test -f hem/profile/foo.com
+		assert test "$(wc -l < hem/profile/foo.com)" -gt 0
+		assert sh -n hem/profile/foo.com
+	end_test
+
+	[ ${_noiseFlag} -ne 0 ] && printf "Hit return to continue..." ; read foobar
+
+)
 
 summarize
 finished=1
